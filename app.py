@@ -1,17 +1,24 @@
+import os
+
 import asyncio
 from flask import Flask, render_template, request, redirect, url_for, session
 from telethon import TelegramClient
-from telethon.sessions import StringSession
 from telethon.errors import PhoneCodeExpiredError, PhoneCodeInvalidError
+from dotenv import load_dotenv
 
-API_ID = 24325110
-API_HASH = '09c12098a3e94010de9988e3168ced9e'
+# API_ID = 24325110
+# API_HASH = '09c12098a3e94010de9988e3168ced9e'
+load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = 'chevar'  # Replace with a secure key
-session_name = 'chevar'  # Replace with a unique name
+app.secret_key = 'chevar'
+API_ID = os.getenv('API_ID')
+API_HASH = os.getenv('API_HASH')
+SESSION_NAME = os.getenv('SESSION_NAME')
+
+
 async def create_client():
-    client = TelegramClient(session_name, API_ID, API_HASH)
+    client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
     await client.connect()
     return client
 
@@ -22,6 +29,7 @@ def home():
         return render_template('home.html', username=session['user'])
     else:
         return redirect(url_for('login'))
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -45,6 +53,7 @@ def login():
         return asyncio.run(login_async())
 
     return render_template('login.html')
+
 
 @app.route('/verify', methods=['GET', 'POST'])
 def verify():
@@ -75,12 +84,14 @@ def verify():
 
     return render_template('verify.html')
 
+
 @app.route('/logout')
 def logout():
     session.pop('user', None)
     session.pop('phone', None)
     session.pop('phone_code_hash', None)
     return redirect(url_for('login'))
+
 
 if __name__ == '__main__':
     app.run(debug=True)

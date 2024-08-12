@@ -1,10 +1,10 @@
 import os
-
 import asyncio
 from flask import Flask, render_template, request, redirect, url_for, session
 from telethon import TelegramClient
 from telethon.errors import PhoneCodeExpiredError, PhoneCodeInvalidError
 from dotenv import load_dotenv
+import uuid
 
 # API_ID = 24325110
 # API_HASH = '09c12098a3e94010de9988e3168ced9e'
@@ -12,13 +12,27 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = 'chevar'
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_FILE_PATH'] = 'users'
 API_ID = os.getenv('API_ID')
 API_HASH = os.getenv('API_HASH')
-SESSION_NAME = os.getenv('SESSION_NAME')
+
+
+def generate_uid_with_key(key):
+    uid = uuid.uuid4()  # Generate a random UUID
+    combined = f"{key}-{uid}"
+    return combined
+
+
+Session_Flask = app.config['SESSION_FILE_PATH'] = 'users/' + generate_uid_with_key('chevar')
+
+
+def generated_key():
+    return str(API_ID) + '_' + str(API_HASH)
 
 
 async def create_client():
-    client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
+    client = TelegramClient(Session_Flask, API_ID, API_HASH)
     await client.connect()
     return client
 

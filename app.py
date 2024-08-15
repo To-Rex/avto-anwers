@@ -10,7 +10,6 @@ import asyncio
 import time
 import difflib
 
-
 API_ID = 24325110
 API_HASH = '09c12098a3e94010de9988e3168ced9e'
 GEMINI_API_KEY = 'AIzaSyCJd31hmAHHPom3ou7KNaDl2LQnbkEF5cQ'
@@ -18,8 +17,8 @@ app = Client("auto_reply_bot", api_id=API_ID, api_hash=API_HASH)
 processed_messages = set()
 data_cache = {}
 message_timestamps = {}
-reply_interval = 10  # Time window in seconds
-reply_threshold = 2  # Number of messages to trigger a special reply
+reply_interval = 10
+reply_threshold = 2
 
 
 def find_best_match(user_message):
@@ -49,6 +48,7 @@ def find_best_match(user_message):
             return random.choice(responses) if responses else None
 
     return None
+
 
 @app.on_message(filters.text & filters.private)
 async def auto_reply(client, message):
@@ -128,7 +128,8 @@ async def auto_reply(client, message):
     await client.send_message(message.chat.id, reply_text, reply_to_message_id=reply_to_message_id)
 
 
-@app.on_message(filters.private & (filters.audio | filters.voice | filters.photo | filters.video | filters.document | filters.animation | filters.sticker | filters.contact | filters.location | filters.venue))
+@app.on_message(filters.private & (
+        filters.audio | filters.voice | filters.photo | filters.video | filters.document | filters.animation | filters.sticker | filters.contact | filters.location | filters.venue))
 async def auto_reply_other(client, message):
     current_time = time.time()
     user_id = message.from_user.id

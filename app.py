@@ -29,11 +29,16 @@ def find_best_match(user_message, data):
 
 @app.on_message(filters.text & filters.private)
 async def auto_reply(client, message):
+    my_ids = (await client.get_me()).id
     if message.text.startswith('/start'):
-        update_power_value('true')
+        if message.from_user.id == my_ids:
+            update_power_value('true')
+            await client.send_message(message.chat.id, 'Mening yordamchim ishga tushirildi')
         return
     if message.text.startswith('/stop'):
-        update_power_value('false')
+        if message.from_user.id == my_ids:
+            update_power_value('false')
+            await client.send_message(message.chat.id, 'Mening yordamchim ishni to`xtatdi')
         return
     if message.text.startswith('/add'):
         try:
@@ -44,15 +49,11 @@ async def auto_reply(client, message):
             await client.send_message(message.chat.id, "Muvaffaqiyatli qo'shildi")
             return
         except:
-            await client.send_message(message.chat.id,
-                                      "Xatolik: To'g'ri formatda yozing. Masalan: /add \"salom\", \"Salom, qalaysiz?\"")
+            await client.send_message(message.chat.id,"Xatolik: To'g'ri formatda yozing. Masalan: /add \"salom\", \"Salom, qalaysiz?\"")
             return
     if not getPowerValue():
         return
-
-    my_id = (await client.get_me()).id
-    if message.from_user.id == my_id:
-        print("Botdan kel")
+    if message.from_user.id == my_ids:
         return
     user_message = message.text.lower().strip()
 
@@ -110,84 +111,84 @@ async def auto_reply_voice(client, message):
 async def auto_reply_photo(client, message):
     if not getPowerValue():
         return
-    await client.send_message(message.chat.id, "Ooo rasm tashlab qo`ydingizku 😄")
+    await client.send_message(message.chat.id, 'Endi buni yuklab olib ko`rishim kerak 😄')
 
 
 @app.on_message(filters.video & filters.private)
 async def auto_reply_video(client, message):
     if not getPowerValue():
         return
-    await client.send_message(message.chat.id, "Ooo video tashlab qo`ydingizku 😄")
+    await client.send_message(message.chat.id, 'Endi buni yuklab olib ko`rishim kerak 😄')
 
 
 @app.on_message(filters.document & filters.private)
 async def auto_reply_document(client, message):
     if not getPowerValue():
         return
-    await client.send_message(message.chat.id, "Ooo fayl tashlab qo`ydingizku 😄")
+    await client.send_message(message.chat.id, 'Nima ekan bu? 😄')
 
 
 @app.on_message(filters.animation & filters.private)
 async def auto_reply_animation(client, message):
     if not getPowerValue():
         return
-    await client.send_message(message.chat.id, "Ooo animatsiya tashlab qo`ydingizku 😄")
+    await client.send_message(message.chat.id, 'jimir jimir 😄')
 
 
 @app.on_message(filters.sticker & filters.private)
 async def auto_reply_sticker(client, message):
     if not getPowerValue():
         return
-    await client.send_message(message.chat.id, "Ooo stiker tashlab qo`ydingizku 😄")
+    await client.send_message(message.chat.id, 'jimir jimir 😄')
 
 
 @app.on_message(filters.contact & filters.private)
 async def auto_reply_contact(client, message):
     if not getPowerValue():
         return
-    await client.send_message(message.chat.id, "Ooo kontakt tashlab qo`ydingizku 😄")
+    await client.send_message(message.chat.id, 'Albatta qo`ng`iroq qilaman yoki yozaman 😄')
 
 
 @app.on_message(filters.location & filters.private)
 async def auto_reply_location(client, message):
     if not getPowerValue():
         return
-    await client.send_message(message.chat.id, "Ooo joylashuv tashlab qo`ydingizku 😄")
+    await client.send_message(message.chat.id, 'Yugurib yetvolemni 😄')
 
 
 @app.on_message(filters.venue & filters.private)
 async def auto_reply_venue(client, message):
     if not getPowerValue():
         return
-    await client.send_message(message.chat.id, "Ooo mehmonxona tashlab qo`ydingizku 😄")
+    await client.send_message(message.chat.id, 'tninn tninnnnnnnnn 😄')
 
 
 @app.on_message(filters.poll & filters.private)
 async def auto_reply_poll(client, message):
     if not getPowerValue():
         return
-    await client.send_message(message.chat.id, "Ooo so`rovnoma tashlab qo`ydingizku 😄")
+    await client.send_message(message.chat.id, 'Hohlagan bitta variantni tanlavoraymi 😄')
 
 
 @app.on_message(filters.dice & filters.private)
 async def auto_reply_dice(client, message):
     if not getPowerValue():
         return
-    await client.send_message(message.chat.id, "Ooo zar tashlab qo`ydingizku 😄")
+    await client.send_message(message.chat.id, 'Ooo zar tashlab qo`ydingizku 😄')
 
 
 @app.on_message(filters.game & filters.private)
 async def auto_reply_game(client, message):
     if not getPowerValue():
         return
-    await client.send_message(message.chat.id, "Ooo o'yin tashlab qo`ydingizku 😄")
+    await client.send_message(message.chat.id, 'Hamma ishimni tashlab O`ynamayman 🎮🕹🧩🃏♣️🎴')
 
 
 @app.on_message(filters.service & filters.private)
 async def auto_reply_service(client, message):
     if not getPowerValue():
         return
-    await client.send_message(message.chat.id, "Ooo xizmat tashlab qo`ydingizku 😄")
+    await client.send_message(message.chat.id, 'Hizmat bo`lsa ishdan qochmaymiz 😄')
 
 
 def add_entry_to_json(key, value):

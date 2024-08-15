@@ -1,34 +1,95 @@
 import json
 import os
 import requests
+import random
 from pyrogram import Client, filters
 import re
+from connection import connect_db, add_working_count, backup_db_to_json
+import asyncio
+import time
+import difflib
 
-# Telegram bot API credentials
+
 API_ID = 24325110
 API_HASH = '09c12098a3e94010de9988e3168ced9e'
-
 GEMINI_API_KEY = 'AIzaSyCJd31hmAHHPom3ou7KNaDl2LQnbkEF5cQ'
-
 app = Client("auto_reply_bot", api_id=API_ID, api_hash=API_HASH)
+processed_messages = set()
+data_cache = {}
+message_timestamps = {}
+reply_interval = 10  # Time window in seconds
+reply_threshold = 2  # Number of messages to trigger a special reply
 
 
-def find_best_match(user_message, data):
+async def load_data_from_db():
+    print("Loading data from the database...")
+    global data_cache
+    conn = connect_db()
+    if not conn:
+        print("Error: Database connection failed")
+        return
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT key, value FROM bot_responses;")
+            data_cache = {row[0].lower().strip(): row[1] for row in cursor.fetchall()}
+    except Exception as e:
+        print(f"Error fetching data from the database: {e}")
+    finally:
+        print("iiiiyyyyyy")
+        conn.close()
+
+
+def find_best_match(user_message):
     user_message = user_message.lower().strip()
-    data = {k.lower().strip(): v for k, v in data.items()}
-    if user_message in data:
-        return data[user_message]
-    for key in data:
-        if key in user_message:
-            return data[key]
-    for key in data:
+    threshold = 0.6
+    if user_message in data_cache:
+        responses = data_cache[user_message]
+        return random.choice(responses) if responses else None
+    for key in data_cache:
+        similarity = difflib.SequenceMatcher(None, key, user_message).ratio()
+        if similarity >= threshold:
+            responses = data_cache[key]
+            return random.choice(responses) if responses else None
+    for key in data_cache:
         if re.search(key, user_message):
-            return data[key]
+            responses = data_cache[key]
+            return random.choice(responses) if responses else None
     return None
+
+
+async def add_entry_to_db(key, values):
+    conn = connect_db()
+    if not conn:
+        print("Error: Database connection failed")
+        return
+    if not isinstance(values, list):
+        values = [values]
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO bot_responses (key, value) VALUES (%s, %s) ON CONFLICT (key) DO UPDATE SET value = "
+                "EXCLUDED.value;",
+                (key, values))
+            conn.commit()
+            data_cache[key.lower().strip()] = values
+    except Exception as e:
+        print(f"Error adding entry to the database: {e}")
+    finally:
+        conn.close()
 
 
 @app.on_message(filters.text & filters.private)
 async def auto_reply(client, message):
+    current_time = time.time()
+    user_id = message.from_user.id
+    if user_id not in message_timestamps:
+        message_timestamps[user_id] = []
+    message_timestamps[user_id].append(current_time)
+    message_timestamps[user_id] = [timestamp for timestamp in message_timestamps[user_id] if
+                                   current_time - timestamp <= reply_interval]
+    use_reply_to = len(message_timestamps[user_id]) >= reply_threshold
+    if message.id in processed_messages:
+        return
     my_ids = (await client.get_me()).id
     if message.text.startswith('/start'):
         if message.from_user.id == my_ids:
@@ -40,28 +101,31 @@ async def auto_reply(client, message):
             update_power_value('false')
             await client.send_message(message.chat.id, 'Mening yordamchim ishni to`xtatdi')
         return
+    if message.text.startswith('/buckup'):
+        if message.from_user.id == my_ids:
+            conn = connect_db()
+            if conn:
+                backup_db_to_json(conn)
+                conn.close()
+            await client.send_message(message.chat.id, 'Ma`lumotlar bazasi yuklandi')
+        return
     if message.text.startswith('/add'):
         try:
             key, value = message.text.split(' ', 1)[1].split('", "')
             key = key.strip()[1:]
             value = value.strip()[:-1]
-            add_entry_to_json(key, value)
+            await add_entry_to_db(key, value)
             await client.send_message(message.chat.id, "Muvaffaqiyatli qo'shildi")
-            return
-        except:
-            await client.send_message(message.chat.id,"Xatolik: To'g'ri formatda yozing. Masalan: /add \"salom\", \"Salom, qalaysiz?\"")
-            return
-    if not getPowerValue():
+        except Exception as e:
+            await client.send_message(message.chat.id, "Xatolik: To'g'ri formatda yozing. Masalan: /add \"salom\", "
+                                                       "\"Salom, qalaysiz?\"" + str(e))
+        return
+    if not get_power_value():
         return
     if message.from_user.id == my_ids:
         return
     user_message = message.text.lower().strip()
-
-    with open('data.json', 'r') as f:
-        data = json.load(f)
-
-    reply_text = find_best_match(user_message, data)
-    print(reply_text)
+    reply_text = find_best_match(user_message)
     if reply_text is None or reply_text == '':
         try:
             response = requests.post(
@@ -85,143 +149,73 @@ async def auto_reply(client, message):
             else:
                 reply_text = "Хато: Gemini API дан жавоб олишда муаммо"
         except Exception as e:
-            reply_text = "Хато: Mening sun'iy intellektimda muammo bor"
-
-    # Send the response back to the user
-    await client.send_message(message.chat.id, reply_text)
-
-
-@app.on_message(filters.audio & filters.private)
-async def auto_reply_audio(client, message):
-    if not getPowerValue():
-        return
-    await client.send_message(message.chat.id, "Iltimos, ishingiz zarurroq bolsa yozing. shunda tezroq javob "
-                                               "berishimiz mumkin.")
-
-
-@app.on_message(filters.voice & filters.private)
-async def auto_reply_voice(client, message):
-    if not getPowerValue():
-        return
-    await client.send_message(message.chat.id, "Iltimos, ishingiz zarurroq bolsa yozing. shunda tezroq javob "
-                                               "berishimiz mumkin.")
-
-
-@app.on_message(filters.photo & filters.private)
-async def auto_reply_photo(client, message):
-    if not getPowerValue():
-        return
-    await client.send_message(message.chat.id, 'Endi buni yuklab olib ko`rishim kerak 😄')
-
-
-@app.on_message(filters.video & filters.private)
-async def auto_reply_video(client, message):
-    if not getPowerValue():
-        return
-    await client.send_message(message.chat.id, 'Endi buni yuklab olib ko`rishim kerak 😄')
-
-
-@app.on_message(filters.document & filters.private)
-async def auto_reply_document(client, message):
-    if not getPowerValue():
-        return
-    await client.send_message(message.chat.id, 'Nima ekan bu? 😄')
-
-
-@app.on_message(filters.animation & filters.private)
-async def auto_reply_animation(client, message):
-    if not getPowerValue():
-        return
-    await client.send_message(message.chat.id, 'jimir jimir 😄')
-
-
-@app.on_message(filters.sticker & filters.private)
-async def auto_reply_sticker(client, message):
-    if not getPowerValue():
-        return
-    await client.send_message(message.chat.id, 'jimir jimir 😄')
-
-
-@app.on_message(filters.contact & filters.private)
-async def auto_reply_contact(client, message):
-    if not getPowerValue():
-        return
-    await client.send_message(message.chat.id, 'Albatta qo`ng`iroq qilaman yoki yozaman 😄')
-
-
-@app.on_message(filters.location & filters.private)
-async def auto_reply_location(client, message):
-    if not getPowerValue():
-        return
-    await client.send_message(message.chat.id, 'Yugurib yetvolemni 😄')
-
-
-@app.on_message(filters.venue & filters.private)
-async def auto_reply_venue(client, message):
-    if not getPowerValue():
-        return
-    await client.send_message(message.chat.id, 'tninn tninnnnnnnnn 😄')
-
-
-@app.on_message(filters.poll & filters.private)
-async def auto_reply_poll(client, message):
-    if not getPowerValue():
-        return
-    await client.send_message(message.chat.id, 'Hohlagan bitta variantni tanlavoraymi 😄')
-
-
-@app.on_message(filters.dice & filters.private)
-async def auto_reply_dice(client, message):
-    if not getPowerValue():
-        return
-    await client.send_message(message.chat.id, 'Ooo zar tashlab qo`ydingizku 😄')
-
-
-@app.on_message(filters.game & filters.private)
-async def auto_reply_game(client, message):
-    if not getPowerValue():
-        return
-    await client.send_message(message.chat.id, 'Hamma ishimni tashlab O`ynamayman 🎮🕹🧩🃏♣️🎴')
-
-
-@app.on_message(filters.service & filters.private)
-async def auto_reply_service(client, message):
-    if not getPowerValue():
-        return
-    await client.send_message(message.chat.id, 'Hizmat bo`lsa ishdan qochmaymiz 😄')
-
-
-def add_entry_to_json(key, value):
-    file_path = 'data.json'
-    if not os.path.exists(file_path):
-        with open(file_path, 'w') as f:
-            json.dump({}, f)
-    with open(file_path, 'r') as f:
-        data = json.load(f)
-    data[key] = value
-    with open(file_path, 'w') as f:
-        json.dump(data, f)
-
-
-def update_power_value(new_value):
-    file_path = 'config.json'
-    if new_value.lower() == 'true':
-        value = True
-    elif new_value.lower() == 'false':
-        value = False
+            reply_text = "Хато: Mening sun'iy intellektimda muammo bor" + str(e)
     else:
-        raise ValueError("Invalid value. Must be 'true' or 'false'.")
-    if os.path.exists(file_path):
-        with open(file_path, 'r') as file:
-            data = json.load(file)
-    else:
-        data = {}
-    data["power"] = value
-    with open(file_path, 'w') as file:
-        json.dump(data, file, ensure_ascii=False, indent=4)
+        conn = connect_db()
+        if conn:
+            add_working_count(conn, user_message)
+            conn.close()
+    reply_to_message_id = message.id if use_reply_to else None
+    processed_messages.add(message.id)
+    await client.send_message(message.chat.id, reply_text, reply_to_message_id=reply_to_message_id)
 
 
-def getPowerValue():
+@app.on_message(filters.private & (filters.audio | filters.voice | filters.photo | filters.video | filters.document | filters.animation | filters.sticker | filters.contact | filters.location | filters.venue))
+async def auto_reply_other(client, message):
+    current_time = time.time()
+    user_id = message.from_user.id
+    if user_id not in message_timestamps:
+        message_timestamps[user_id] = []
+    message_timestamps[user_id].append(current_time)
+    message_timestamps[user_id] = [timestamp for timestamp in message_timestamps[user_id] if
+                                   current_time - timestamp <= reply_interval]
+    use_reply_to = len(message_timestamps[user_id]) >= reply_threshold
+    if message.id in processed_messages:
+        return
+    if not get_power_value():
+        return
+    if message.from_user.id == (await client.get_me()).id:
+        return
+    switcher = {
+        'audio': 'negadur audioni ochmayapti...',
+        'voice': 'negadur voiceni ochmayapti...',
+        'photo': 'Endi buni yuklab olib ko`rishim kerak 😄',
+        'video': 'Endi buni yuklab olib ko`rishim kerak 😄',
+        'document': 'Nima ekan bu? 😄',
+        'animation': 'jimir jimir 😄',
+        'sticker': 'jimir jimir 😄',
+        'contact': 'Albatta qo`ng`iroq qilaman yoki yozaman 😄',
+        'location': 'Yugurib yetvolemni 😄',
+        'venue': 'Yugurib yetvolemni 😄'
+    }
+    message_type = None
+    if message.audio:
+        message_type = 'audio'
+    elif message.voice:
+        message_type = 'voice'
+    elif message.photo:
+        message_type = 'photo'
+    elif message.video:
+        message_type = 'video'
+    elif message.document:
+        message_type = 'document'
+    elif message.animation:
+        message_type = 'animation'
+    elif message.sticker:
+        message_type = 'sticker'
+    elif message.contact:
+        message_type = 'contact'
+    elif message.location:
+        message_type = 'location'
+    elif message.venue:
+        message_type = 'venue'
+    response = switcher.get(message_type, 'chunmadim!')
+    processed_messages.add(message.id)
+    reply_to_message_id = message.id if use_reply_to else None
+    await client.send_message(message.chat.id, response, reply_to_message_id=reply_to_message_id)
+
+
+def get_power_value():
     file_path = 'config.json'
     if os.path.exists(file_path):
         with open(file_path, 'r') as file:
@@ -230,4 +224,19 @@ def getPowerValue():
     return False
 
 
-app.run()
+def update_power_value(new_value):
+    file_path = 'config.json'
+    if os.path.exists(file_path):
+        with open(file_path, 'r') as file:
+            data = json.load(file)
+    else:
+        data = {}
+    data["power"] = new_value
+    with open(file_path, 'w') as file:
+        json.dump(data, file)
+
+
+if __name__ == "__main__":
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(load_data_from_db())
+    app.run()

@@ -1,5 +1,6 @@
 import json
 import os
+
 import requests
 import random
 from pyrogram import Client, filters
@@ -21,62 +22,33 @@ reply_interval = 10  # Time window in seconds
 reply_threshold = 2  # Number of messages to trigger a special reply
 
 
-async def load_data_from_db():
-    print("Loading data from the database...")
-    global data_cache
-    conn = connect_db()
-    if not conn:
-        print("Error: Database connection failed")
-        return
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT key, value FROM bot_responses;")
-            data_cache = {row[0].lower().strip(): row[1] for row in cursor.fetchall()}
-    except Exception as e:
-        print(f"Error fetching data from the database: {e}")
-    finally:
-        print("iiiiyyyyyy")
-        conn.close()
-
-
 def find_best_match(user_message):
     user_message = user_message.lower().strip()
+
+    # O'xshash so'zlarni topish uchun threshold darajasi belgilaymiz (masalan, 0.6 yoki undan yuqori)
     threshold = 0.6
+
+    # So'zning aniq mosligi uchun birinchi qidiruv
     if user_message in data_cache:
         responses = data_cache[user_message]
         return random.choice(responses) if responses else None
+
+    # Agar aniq moslik bo'lmasa, o'xshash so'zlarni qidiramiz
     for key in data_cache:
+        # O'xshashlik darajasini aniqlaymiz
         similarity = difflib.SequenceMatcher(None, key, user_message).ratio()
+
         if similarity >= threshold:
             responses = data_cache[key]
             return random.choice(responses) if responses else None
+
+    # Agar yuqoridagi ikkita usul ham javob topa olmasa, oddiy qidiruvni amalga oshiramiz
     for key in data_cache:
         if re.search(key, user_message):
             responses = data_cache[key]
             return random.choice(responses) if responses else None
+
     return None
-
-
-async def add_entry_to_db(key, values):
-    conn = connect_db()
-    if not conn:
-        print("Error: Database connection failed")
-        return
-    if not isinstance(values, list):
-        values = [values]
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                "INSERT INTO bot_responses (key, value) VALUES (%s, %s) ON CONFLICT (key) DO UPDATE SET value = "
-                "EXCLUDED.value;",
-                (key, values))
-            conn.commit()
-            data_cache[key.lower().strip()] = values
-    except Exception as e:
-        print(f"Error adding entry to the database: {e}")
-    finally:
-        conn.close()
-
 
 @app.on_message(filters.text & filters.private)
 async def auto_reply(client, message):
@@ -110,15 +82,11 @@ async def auto_reply(client, message):
             await client.send_message(message.chat.id, 'Ma`lumotlar bazasi yuklandi')
         return
     if message.text.startswith('/add'):
-        try:
-            key, value = message.text.split(' ', 1)[1].split('", "')
-            key = key.strip()[1:]
-            value = value.strip()[:-1]
+        if message.from_user.id == my_ids:
+            key_value = message.text.split('/add')[1].strip()
+            key, value = key_value.split('||')
             await add_entry_to_db(key, value)
-            await client.send_message(message.chat.id, "Muvaffaqiyatli qo'shildi")
-        except Exception as e:
-            await client.send_message(message.chat.id, "Xatolik: To'g'ri formatda yozing. Masalan: /add \"salom\", "
-                                                       "\"Salom, qalaysiz?\"" + str(e))
+            await client.send_message(message.chat.id, 'Ma`lumotlar bazasiga muvaffaqiyatli qo`shildi')
         return
     if not get_power_value():
         return
@@ -234,6 +202,56 @@ def update_power_value(new_value):
     data["power"] = new_value
     with open(file_path, 'w') as file:
         json.dump(data, file)
+
+
+async def load_data_from_db():
+    print("Loading data from the database...")
+    global data_cache
+    conn = connect_db()
+    if not conn:
+        print("Error: Database connection failed")
+        return
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT key, value FROM bot_responses;")
+            data_cache = {row[0].lower().strip(): row[1] for row in cursor.fetchall()}
+    except Exception as e:
+        print(f"Error fetching data from the database: {e}")
+    finally:
+        print("iiiiyyyyyy")
+        conn.close()
+
+
+async def add_entry_to_db(key, values):
+    if not key.strip():
+        print("Error: Kalit bo'sh bo'lishi mumkin emas")
+        return
+    conn = connect_db()
+    if not conn:
+        print("Error: Database connection failed")
+        return
+    if not isinstance(values, list):
+        values = [values]
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT value FROM bot_responses WHERE key = %s;", (key,))
+            result = cursor.fetchone()
+            if result:
+                print(result)
+                existing_values = result[0]
+                if isinstance(existing_values, list):
+                    existing_values.extend(value for value in values if value not in existing_values)
+                else:
+                    existing_values = [existing_values] + [value for value in values if value != existing_values]
+                cursor.execute("UPDATE bot_responses SET value = %s WHERE key = %s;", (existing_values, key))
+            else:
+                cursor.execute("INSERT INTO bot_responses (key, value) VALUES (%s, %s);", (key, values))
+            conn.commit()
+            data_cache[key.lower().strip()] = values
+    except Exception as e:
+        print(f"Error adding entry to the database: {e}")
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":

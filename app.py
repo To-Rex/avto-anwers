@@ -157,7 +157,7 @@ async def auto_reply_other(client, message):
         return
     switcher = {
         'audio': 'negadur audioni ochmayapti...',
-        'voice': 'negadur voiceni ochmayapti...',
+        'voice': 'internet yaxshimas negadur ochmayapti...',
         'photo': 'Endi buni yuklab olib ko`rishim kerak 😄',
         'video': 'Endi buni yuklab olib ko`rishim kerak 😄',
         'document': 'Nima ekan bu? 😄',

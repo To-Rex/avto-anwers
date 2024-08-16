@@ -83,6 +83,16 @@ async def auto_reply(client, message):
         return
     if message.text.startswith('/add'):
         if message.from_user.id == my_ids:
+            if '||' not in message.text:
+                await client.send_message(message.chat.id, 'Kalit va qiymatni || bilan ajrating')
+                return
+            if message.text.count('||') > 1:
+                await client.send_message(message.chat.id, 'Kalit va qiymatni || bilan ajrating')
+                return
+            if message.text.split('/add')[1].strip() == '':
+                await client.send_message(message.chat.id, 'Kalit va qiymatni || bilan ajrating')
+                return
+
             key_value = message.text.split('/add')[1].strip()
             key, value = key_value.split('||')
             await add_entry_to_db(key, value)
@@ -245,13 +255,17 @@ async def add_entry_to_db(key, values):
                 else:
                     existing_values = [existing_values] + [value for value in values if value != existing_values]
                 cursor.execute("UPDATE bot_responses SET value = %s WHERE key = %s;", (existing_values, key))
+                await load_data_from_db()
             else:
                 cursor.execute("INSERT INTO bot_responses (key, value) VALUES (%s, %s);", (key, values))
             conn.commit()
             data_cache[key.lower().strip()] = values
+            await load_data_from_db()
     except Exception as e:
         print(f"Error adding entry to the database: {e}")
+        await load_data_from_db()
     finally:
+        await load_data_from_db()
         conn.close()
 
 

@@ -54,6 +54,7 @@ def find_best_match(user_message):
 async def auto_reply(client, message):
     current_time = time.time()
     user_id = message.from_user.id
+    my_ids = (await client.get_me()).id
     if user_id not in message_timestamps:
         message_timestamps[user_id] = []
     message_timestamps[user_id].append(current_time)
@@ -62,15 +63,15 @@ async def auto_reply(client, message):
     use_reply_to = len(message_timestamps[user_id]) >= reply_threshold
     if message.id in processed_messages:
         return
-    my_ids = (await client.get_me()).id
+
     if message.text.startswith('/start'):
         if message.from_user.id == my_ids:
-            update_power_value('true')
+            update_power_value(True)
             await client.send_message(message.chat.id, 'Mening yordamchim ishga tushirildi')
         return
     if message.text.startswith('/stop'):
         if message.from_user.id == my_ids:
-            update_power_value('false')
+            update_power_value(False)
             await client.send_message(message.chat.id, 'Mening yordamchim ishni to`xtatdi')
         return
     if message.text.startswith('/buckup'):
@@ -203,16 +204,21 @@ def get_power_value():
     return False
 
 
-def update_power_value(new_value):
+def update_power_value(new_value: bool):
+    if not isinstance(new_value, bool):
+        raise ValueError("The new_value must be a boolean.")
     file_path = 'config.json'
+    data = {"power": new_value}
+
     if os.path.exists(file_path):
         with open(file_path, 'r') as file:
-            data = json.load(file)
+            existing_data = json.load(file)
+            existing_data["power"] = new_value
+            with open(file_path, 'w') as file:
+                json.dump(existing_data, file, indent=4)
     else:
-        data = {}
-    data["power"] = new_value
-    with open(file_path, 'w') as file:
-        json.dump(data, file)
+        with open(file_path, 'w') as file:
+            json.dump(data, file, indent=4)
 
 
 async def load_data_from_db():

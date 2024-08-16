@@ -6,6 +6,7 @@ annotated-types==0.7.0
 anyio==4.4.0
 async-timeout==4.0.3
 asyncio==3.4.3
+asyncpg==0.29.0
 attrs==23.2.0
 Babel==2.9.1
 beautifulsoup4==4.12.3
@@ -53,6 +54,7 @@ packaging==24.1
 pillow==10.2.0
 priority==2.0.0
 proglog==0.1.10
+psycopg2-binary==2.9.9
 py3-pinterest==0.1.0
 pyaes==1.6.1
 pyasn1==0.6.0
@@ -66,12 +68,14 @@ python-gemini-api==2.4.12
 pytube==15.0.0
 pytz==2024.1
 Quart==0.19.6
+redis==5.0.8
 requests==2.31.0
 requests-toolbelt==1.0.0
 rsa==4.9
 setuptools==69.2.0
 sniffio==1.3.1
 soupsieve==2.5
+SQLite3-0611==0.0.1
 starlette==0.37.2
 telegram==0.0.1
 Telethon==1.36.0

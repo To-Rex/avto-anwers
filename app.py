@@ -55,6 +55,10 @@ async def auto_reply(client, message):
     current_time = time.time()
     user_id = message.from_user.id
     my_ids = (await client.get_me()).id
+
+    if message.from_user.is_bot:
+        return
+
     if user_id not in message_timestamps:
         message_timestamps[user_id] = []
     message_timestamps[user_id].append(current_time)

@@ -1,6 +1,5 @@
 import json
 import os
-
 import requests
 import random
 from pyrogram import Client, filters
@@ -23,30 +22,24 @@ reply_threshold = 2
 
 def find_best_match(user_message):
     user_message = user_message.lower().strip()
-
     # O'xshash so'zlarni topish uchun threshold darajasi belgilaymiz (masalan, 0.6 yoki undan yuqori)
     threshold = 0.6
-
     # So'zning aniq mosligi uchun birinchi qidiruv
     if user_message in data_cache:
         responses = data_cache[user_message]
         return random.choice(responses) if responses else None
-
     # Agar aniq moslik bo'lmasa, o'xshash so'zlarni qidiramiz
     for key in data_cache:
         # O'xshashlik darajasini aniqlaymiz
         similarity = difflib.SequenceMatcher(None, key, user_message).ratio()
-
         if similarity >= threshold:
             responses = data_cache[key]
             return random.choice(responses) if responses else None
-
     # Agar yuqoridagi ikkita usul ham javob topa olmasa, oddiy qidiruvni amalga oshiramiz
     for key in data_cache:
         if re.search(key, user_message):
             responses = data_cache[key]
             return random.choice(responses) if responses else None
-
     return None
 
 
@@ -55,10 +48,8 @@ async def auto_reply(client, message):
     current_time = time.time()
     user_id = message.from_user.id
     my_ids = (await client.get_me()).id
-
     if message.from_user.is_bot:
         return
-
     if user_id not in message_timestamps:
         message_timestamps[user_id] = []
     message_timestamps[user_id].append(current_time)
@@ -67,7 +58,6 @@ async def auto_reply(client, message):
     use_reply_to = len(message_timestamps[user_id]) >= reply_threshold
     if message.id in processed_messages:
         return
-
     if message.text.startswith('/start'):
         if message.from_user.id == my_ids:
             update_power_value(True)
@@ -97,7 +87,6 @@ async def auto_reply(client, message):
             if message.text.split('/add')[1].strip() == '':
                 await client.send_message(message.chat.id, 'Kalit va qiymatni || bilan ajrating')
                 return
-
             key_value = message.text.split('/add')[1].strip()
             key, value = key_value.split('||')
             await add_entry_to_db(key, value)
@@ -143,8 +132,7 @@ async def auto_reply(client, message):
     await client.send_message(message.chat.id, reply_text, reply_to_message_id=reply_to_message_id)
 
 
-@app.on_message(filters.private & (
-        filters.audio | filters.voice | filters.photo | filters.video | filters.document | filters.animation | filters.sticker | filters.contact | filters.location | filters.venue))
+@app.on_message(filters.private & (filters.audio | filters.voice | filters.photo | filters.video | filters.document | filters.animation | filters.sticker | filters.contact | filters.location | filters.venue))
 async def auto_reply_other(client, message):
     current_time = time.time()
     user_id = message.from_user.id
@@ -213,7 +201,6 @@ def update_power_value(new_value: bool):
         raise ValueError("The new_value must be a boolean.")
     file_path = 'config.json'
     data = {"power": new_value}
-
     if os.path.exists(file_path):
         with open(file_path, 'r') as file:
             existing_data = json.load(file)

@@ -1,0 +1,27 @@
+Metadata-Version: 2.1
+Name: py3-pinterest
+Version: 0.1.0
+Summary: Unofficial pinterest api implemented in python 3
+Home-page: https://github.com/bstoilov/py3-pinterest
+Author: Borislav Stoilov
+Author-email: boriostoilov@gmail.com
+License: MIT
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Intended Audience :: Developers
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: Implementation :: CPython
+Requires-Python: >=3.5.0
+Description-Content-Type: text/markdown
+Requires-Dist: requests
+Requires-Dist: beautifulsoup4
+Requires-Dist: requests-toolbelt
+
+Unofficial pinterest api implemented in python 3
+
+

@@ -1,0 +1,17 @@
+Metadata-Version: 2.1
+Name: SQLite3-0611
+Version: 0.0.1
+Summary: Data management package by using sqlite3.
+Author: Mengke Lu
+Author-email: <mklu0611@gmail.com>
+Keywords: python,sqlite3
+Classifier: Development Status :: 1 - Planning
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python :: 3
+Classifier: Operating System :: Unix
+Classifier: Operating System :: MacOS :: MacOS X
+Classifier: Operating System :: Microsoft :: Windows
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
+Data management package by using sqlite3.
